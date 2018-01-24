@@ -1,3 +1,6 @@
+// cpp
+#include <iostream>
+#include <algorithm>
 // ROS
 #include <ros/ros.h>
 #include <ros/console.h>
@@ -28,52 +31,60 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   pcl::PCLPointCloud2* cloud = new pcl::PCLPointCloud2; 
   pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
   pcl::PCLPointCloud2 cloud_vg;
-  pcl::PCLPointCloud2 cloud_r;
-  pcl::PCLPointCloud2 cloud_sor;
-  pcl::PCLPointCloud2 cloud_pca;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_vg_T(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_r(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_sor(new pcl::PointCloud<pcl::PointXYZRGB>);
+  //pcl::PCLPointCloud2 cloud_pca;
   // Convert to PCL data type
   pcl_conversions::toPCL(*cloud_msg, *cloud);
 
   // Voxel grid downsampling
   pcl::VoxelGrid<pcl::PCLPointCloud2> vg;
   vg.setInputCloud (cloudPtr);
-  vg.setLeafSize (0.001, 0.001, 0.001);
+  vg.setLeafSize (0.001f, 0.001f, 0.001f);
   vg.filter (cloud_vg);
-
+  pcl::fromPCLPointCloud2(cloud_vg, *cloud_vg_T);
+  std::cout<<"After voxel grid downsamlpling, there are " << cloud_vg_T->points.size() <<" points."<< std::endl;
   // Color filter
-  int count;
-  int length = cloud_vg.width * cloud_vg.height;
+  int count = 0;
+  int length = cloud_vg_T->points.size();
   for(int i= 0; i< length; ++i)
   {
-    if(cloud_vg.points[i].r > r_thres && cloud-vg.points[i].g < g_thres && cloud_vg.points[i].b < b-thres)
+    if(int(cloud_vg_T->points[i].r) > r_thres )//&& int(cloud_vg_T->points[i].g) < g_thres && int(cloud_vg_T->points[i].b) < b_thres)
     {
       ++count;
     }
   }
-  cloud_r.width = count;
-  cloud_r.height = 1;
-  cloud_r.is_dense = true;
+
+  std::cout << count << std::endl;
+  cloud_r->width = count;
+  cloud_r->height = 1;
+  cloud_r->is_dense = true;
+  cloud_r->points.resize(cloud_r->width * cloud_r->height);
   int j= 0;
   for(int i= 0; i< length; ++i)
   {
-    if(cloud_vg.points[i].r > r_thres && cloud-vg.points[i].g < g_thres && cloud_vg.points[i].b < b-thres)
+    if(int(cloud_vg_T->points[i].r) > r_thres )//&& int(cloud_vg_T->points[i].g) < g_thres && int(cloud_vg_T->points[i].b) < b_thres)
     {
-      cloud_r.points[j].x = cloud_vg.points[i].x;
-      cloud_r.points[j].y = cloud_vg.points[i].y;
-      cloud_r.points[j].z = cloud_vg.points[i].z;
-      cloud_r.points[j].r = cloud_vg.points[i].r;
-      cloud_r.points[j].g = cloud_vg.points[i].g;
-      cloud_r.points[j].b = cloud_vg.points[i].b;
+      cloud_r->points[j].x = cloud_vg_T->points[i].x;
+      cloud_r->points[j].y = cloud_vg_T->points[i].y;
+      cloud_r->points[j].z = cloud_vg_T->points[i].z;
+      cloud_r->points[j].r = cloud_vg_T->points[i].r;
+      cloud_r->points[j].g = cloud_vg_T->points[i].g;
+      cloud_r->points[j].b = cloud_vg_T->points[i].b;
       ++j;
     }
   }
-
+  std::cout<<"After color filter, there are " << cloud_r->points.size() <<" points."<< std::endl;
+  
   // Statistical outlier removal
   pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
   sor.setInputCloud(cloud_r);
   sor.setMeanK(200);
   sor.setStddevMulThresh (0.2);
-  sor.filter (cloud_sor);
+  sor.filter (*cloud_sor);
+  std::cout<<"After statistical outlier removal, there are " << cloud_sor->points.size() <<" points."<< std::endl;
+  /*
   // pca
   pcl::PCA<pcl::PointXYZRGB> pca;
   pca.setInputCloud(cloud_sor);
@@ -81,7 +92,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   Eigen::Vector4f center = pca.getMean();
   // Publish sphere
   visualization_msgs::Marker marker_sphere;
-  marker_sphere.header = cloud_msg.header;
+  marker_sphere.header = cloud_msg->header;
   marker_sphere.type = visualization_msgs::Marker::SPHERE;
   marker_sphere.action = visualization_msgs::Marker::ADD;
   // Pose
@@ -103,10 +114,11 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   marker_sphere.color.a = 1.0;
   // Publish
   pub_sphere.publish(marker_sphere);
+  ROS_INFO("Publish sphere");
 
   // Publish eigenvector
   visualization_msgs::Marker marker_eigen;
-  marker_eigen.header = cloud_msg.header;
+  marker_eigen.header = cloud_msg->header;
   marker_eigen.type = visualization_msgs::Marker::ARROW;
   marker_eigen.action = visualization_msgs::Marker::ADD;
   // Pose
@@ -127,17 +139,20 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   marker_eigen.color.b = 0.0;
   marker_eigen.color.a = 1.0;
   // End point
-  marker_eigen.points.x = center(0) + 0.05 * eigen(0, 0);
-  marker_eigen.points.y = center(1) + 0.05 * eigen(0, 1);
-  marker_eigen.points.z = center(2) + 0.05 * eigen(0, 2);
+  marker_eigen.points[0].x = center(0) + 0.05 * eigen(0, 0);
+  marker_eigen.points[0].y = center(1) + 0.05 * eigen(0, 1);
+  marker_eigen.points[0].z = center(2) + 0.05 * eigen(0, 2);
   // Publish
   pub_eigen.publish(marker_eigen);
+  ROS_INFO("Publish eigen");
+  */
   // Convert to ROS data type
   sensor_msgs::PointCloud2 output;
   pcl_conversions::fromPCL(cloud_vg, output);
 
   // Publish the data
   pub_cloud.publish (output);
+  
 }
 
 int
@@ -155,6 +170,7 @@ main (int argc, char** argv)
   catch(int e)
   {
     ROS_WARN("Threshold is not properly loaded from file, using default value.");
+
   }
 
   // Create a ROS subscriber for the input point cloud

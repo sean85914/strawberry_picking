@@ -1,0 +1,5 @@
+<launch>
+	<node name="strawberry_seg" pkg="my_pcl_tutorial" type="strawberry_seg" output="screen">
+		<rosparam command="load" file="$(find my_pcl_tutorial)/config/threshold.yaml"/>
+	</node>	
+</launch>
