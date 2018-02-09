@@ -1,6 +1,7 @@
 // CPP
 #include <iostream>
 #include <vector>
+#include <string>
 #include <cmath>
 #include <algorithm>
 // ROS
@@ -20,9 +21,33 @@
 //#include <pcl/visualization/pcl_visualizer.h>
 // Publisher
 ros::Publisher pub_cloud;
-//ros::Publisher pub_eigen;
 ros::Publisher pub_sphere;
-
+void pub_marker(double x, double y, double z, std::string frame_id)
+{
+  
+  visualization_msgs::Marker marker;
+  marker.header.frame_id = frame_id;
+  marker.header.stamp = ros::Time::now();
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.pose.position.x = x;
+  marker.pose.position.y = y;
+  marker.pose.position.z = z;
+  marker.pose.orientation.x = 0.0;
+  marker.pose.orientation.y = 0.0;
+  marker.pose.orientation.z = 0.0;
+  marker.pose.orientation.w = 1.0;
+  // radius: 1 cm
+  marker.scale.x = 0.01;
+  marker.scale.y = 0.01;
+  marker.scale.z = 0.01;
+  marker.color.r = 0.0;
+  marker.color.g = 0.0;
+  marker.color.b = 1.0;
+  marker.color.a = 1.0;
+  marker.lifetime = ros::Duration();
+  pub_sphere.publish(marker);
+}
 void 
 cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
@@ -247,27 +272,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   // Information
   //std::cout << "Stem to cut: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
   // Publish sphere marker
-  visualization_msgs::Marker marker;
-  marker.header.frame_id = cloud_msg->header.frame_id;
-  marker.header.stamp = ros::Time::now();
-  marker.type = visualization_msgs::Marker::SPHERE;
-  marker.action = visualization_msgs::Marker::ADD;
-  marker.pose.position.x = cut_x;
-  marker.pose.position.y = cut_y;
-  marker.pose.position.z = cut_z;
-  marker.pose.orientation.x = 0.0;
-  marker.pose.orientation.y = 0.0;
-  marker.pose.orientation.z = 0.0;
-  marker.pose.orientation.w = 1.0;
-  marker.scale.x = 0.01;
-  marker.scale.y = 0.01;
-  marker.scale.z = 0.01;
-  marker.color.r = 0.0;
-  marker.color.g = 0.0;
-  marker.color.b = 1.0;
-  marker.color.a = 1.0;
-  marker.lifetime = ros::Duration();
-  pub_sphere.publish(marker);
+  pub_marker(cut_x, cut_y, cut_z, cloud_msg->header.frame_id);
   // To PCL2
   pcl::toPCLPointCloud2(*segmentation, cloud_sor);
   // Convert to ROS data type
