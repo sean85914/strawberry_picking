@@ -54,6 +54,7 @@ void
 cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
   // PCL type PCL2
+  ros::Time now = ros::Time::now();
   pcl::PCLPointCloud2* cloud = new pcl::PCLPointCloud2; 
   pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
   pcl::PCLPointCloud2 cloud_vg;
@@ -316,7 +317,9 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   cut_z /= num[index];
   */
   // Information
-  std::cout << "Stem to cut w.r.t camera_rgb_optical_frame: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
+  //std::cout << "Stem to cut w.r.t camera_rgb_optical_frame: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
+  // Process time
+  std::cout << "Process time: " << ros::Time::now() - now << std::endl;
   // Publish sphere marker
   // Frame: camera_rgb_optical_frame
   pub_marker(cut_x, cut_y, cut_z, cloud_msg->header.frame_id);
