@@ -18,11 +18,13 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/common/pca.h>
 #include <pcl/segmentation/min_cut_segmentation.h>
-//#include <pcl/visualization/pcl_visualizer.h>
+// For debug
+#include <pcl/visualization/pcl_visualizer.h>
 // Publisher
 ros::Publisher pub_cloud;
 ros::Publisher pub_sphere;
-void pub_marker(double x, double y, double z, std::string frame_id)
+void 
+pub_marker(double x, double y, double z, std::string frame_id)
 {
   
   visualization_msgs::Marker marker;
@@ -62,7 +64,8 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_sor_T(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation(new pcl::PointCloud<pcl::PointXYZRGB> ());
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation_cp(new pcl::PointCloud<pcl::PointXYZRGB> ());
-
+  // Set true to visualization
+  bool debug = true;
   // Visualization
   //pcl::visualization::PCLVisualizer viewer ("Strawberry with vector");
 
@@ -115,6 +118,16 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   Eigen::Vector4f centroid; 
   pcl::compute3DCentroid(*cloud_sor_T, centroid);
   //std::cout << "Center: (" << centroid[0] << ", " << centroid[1] << ", " << centroid[2] << ")" << std::endl;
+  // Debug
+  /*if(debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Strawberry");
+    viewer.addPointCloud(cloud_sor_T, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }*/
   // 5.Min-cut segmentation
   pcl::MinCutSegmentation<pcl::PointXYZRGB> seg;
   seg.setInputCloud (cloud_vg_T);
@@ -159,20 +172,53 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   segmentation->height = 1;
   segmentation->points.resize(count);
   *segmentation_cp = *segmentation;
+  // SOR again
+  sor.setInputCloud(segmentation);
+  sor.setMeanK(200);
+  sor.setStddevMulThresh (0.2);
+  sor.filter (*cloud_sor_T);
   // Information
   //std::cout << "After min-cut segmentation, there are " << segmentation->points.size() << " points for strawberry." << std::endl;
-
+  // Debug
+  /*if(debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Strawberry");
+    viewer.addPointCloud(cloud_sor_T, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }*/
   // 6.PCA
   pcl::PCA<pcl::PointXYZRGB> pca;
-  pca.setInputCloud(segmentation);
+  pca.setInputCloud(cloud_sor_T);
   Eigen::Matrix3f normal = pca.getEigenVectors(); // plane normal
-  // Ideally, dominant eigenvector of strawberry must toward beneath (negative Y), 
-  // So, if dominant eigenvector toward above, convert it to another direction. 
+  // Ideally, dominant eigenvector of strawberry must toward beneath (positive Y), 
+  // So, if dominant eigenvector toward beneath, convert it to another direction. 
   if(normal(0,1) < 0) // eigenvector toward negative Y
   {
     normal = -normal;
   }
   Eigen::Vector4f center = pca.getMean(); // center
+  // Debug
+  /*if(debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Strawberry");
+    pcl::PointXYZ point1, point2;
+    point1.x = center(0);
+    point1.y = center(1);
+    point1.z = center(2);
+    point2.x = center(0) + normal(0, 0) * 0.1;
+    point2.y = center(1) + normal(0, 1) * 0.1;
+    point2.z = center(2) + normal(0, 2) * 0.1;
+    viewer.addArrow(point2, point1, 1, 0, 0, false);
+    viewer.addSphere(point1, 0.005);
+    viewer.addPointCloud(cloud_sor_T, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }*/
   //7.Sectional plane
   double dis_array[28];
   int num[28];
@@ -187,7 +233,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     double z_0 = center[2] + 0.0025*normal(0,2) * (14 - i);
     double dis_sum = 0;
     int count = 0;
-    for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it = segmentation_cp->begin(); it != segmentation_cp->end(); it++)
+    for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it = cloud_sor_T->begin(); it != cloud_sor_T->end(); it++)
     {
       double dis = (normal(0,0)*(it->x - x_0) + normal(0,1)*(it->y - y_0) + normal(0,2)*(it->z - z_0)); // Distance from points to sectinal plane
       // Take absolute value, using cmath abs function gets 0, so using if.
@@ -224,7 +270,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   double x_0 = center[0] + 0.0025*normal(0,0) * (14 - index);
   double y_0 = center[1] + 0.0025*normal(0,1) * (14 - index);
   double z_0 = center[2] + 0.0025*normal(0,2) * (14 - index);
-  for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it = segmentation_cp->begin(); it != segmentation_cp->end(); it++)
+  for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it = cloud_sor_T->begin(); it != cloud_sor_T->end(); it++)
   {
     double dis = (normal(0,0)*(it->x - x_0) + normal(0,1)*(it->y - y_0) + normal(0,2)*(it->z - z_0));
     if(dis < 0) dis = -dis;
@@ -270,18 +316,20 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   cut_z /= num[index];
   */
   // Information
-  //std::cout << "Stem to cut: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
+  std::cout << "Stem to cut w.r.t camera_rgb_optical_frame: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
   // Publish sphere marker
+  // Frame: camera_rgb_optical_frame
   pub_marker(cut_x, cut_y, cut_z, cloud_msg->header.frame_id);
+  //ROS_INFO("(%d, %d, %d)", cut_x, cut_y, cut_z);
   // To PCL2
-  pcl::toPCLPointCloud2(*segmentation, cloud_sor);
+  //pcl::toPCLPointCloud2(*segmentation, cloud_sor);
   // Convert to ROS data type
-  sensor_msgs::PointCloud2 output;
-  output.header.frame_id = cloud_msg->header.frame_id;
-  pcl_conversions::fromPCL(cloud_sor, output);
+  //sensor_msgs::PointCloud2 output;
+  //output.header.frame_id = cloud_msg->header.frame_id;
+  //pcl_conversions::fromPCL(cloud_sor, output);
 
   // Publish the data
-  pub_cloud.publish (output);
+  //pub_cloud.publish (output);
   
 }
 
