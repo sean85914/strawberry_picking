@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# Input: strawberry position
+# Output: Strawberry tf
 import rospy
 import tf
 from visualization_msgs.msg import Marker

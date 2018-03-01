@@ -1,3 +1,5 @@
+// Input: pointcloud from SR300
+// Output: Strawberry position w.r.t camera
 // CPP
 #include <iostream>
 #include <vector>
@@ -23,6 +25,12 @@
 // Publisher
 ros::Publisher pub_cloud;
 ros::Publisher pub_sphere;
+// Publish once
+bool published = false;
+// Position
+double cut_x = 0;
+double cut_y = 0;
+double cut_z = 0;
 void 
 pub_marker(double x, double y, double z, std::string frame_id)
 {
@@ -53,8 +61,10 @@ pub_marker(double x, double y, double z, std::string frame_id)
 void 
 cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
-  // PCL type PCL2
+  if(published) {pub_marker(cut_x, cut_y, cut_z, cloud_msg->header.frame_id); return;}
+  // Show calculation time
   ros::Time now = ros::Time::now();
+  // PCL type PCL2
   pcl::PCLPointCloud2* cloud = new pcl::PCLPointCloud2; 
   pcl::PCLPointCloud2ConstPtr cloudPtr(cloud);
   pcl::PCLPointCloud2 cloud_vg;
@@ -66,7 +76,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation(new pcl::PointCloud<pcl::PointXYZRGB> ());
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation_cp(new pcl::PointCloud<pcl::PointXYZRGB> ());
   // Set true to visualization
-  bool debug = true;
+  bool debug = false;
   // Visualization
   //pcl::visualization::PCLVisualizer viewer ("Strawberry with vector");
 
@@ -202,7 +212,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   }
   Eigen::Vector4f center = pca.getMean(); // center
   // Debug
-  /*if(debug)
+  if(debug)
   {
     pcl::visualization::PCLVisualizer viewer("Strawberry");
     pcl::PointXYZ point1, point2;
@@ -219,13 +229,13 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     {
       viewer.spinOnce();
     }
-  }*/
+  }
   //7.Sectional plane
   double dis_array[28];
   int num[28];
-  double cut_x = 0;
-  double cut_y = 0;
-  double cut_z = 0;
+  //double cut_x = 0;
+  //double cut_y = 0;
+  //double cut_z = 0;
   for(int i=0; i<28; i++)
   {
     // (x_0, y_0, z_0) belongs to the sectional plane
@@ -317,9 +327,9 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   cut_z /= num[index];
   */
   // Information
-  //std::cout << "Stem to cut w.r.t camera_rgb_optical_frame: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
+  std::cout << "Stem to cut w.r.t camera_rgb_optical_frame: " << cut_x << ", " << cut_y << ", " << cut_z << std::endl; 
   // Process time
-  std::cout << "Process time: " << ros::Time::now() - now << std::endl;
+  //std::cout << "Process time: " << ros::Time::now() - now << std::endl;
   // Publish sphere marker
   // Frame: camera_rgb_optical_frame
   pub_marker(cut_x, cut_y, cut_z, cloud_msg->header.frame_id);
@@ -333,7 +343,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 
   // Publish the data
   //pub_cloud.publish (output);
-  
+  published = true;
 }
 
 int
@@ -359,9 +369,9 @@ main (int argc, char** argv)
 
   // Create a ROS publisher for the output point cloud
   
-  pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("my_pcl_tutorial/segmentation", 1);
+  //pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("my_pcl_tutorial/segmentation", 1);
   pub_sphere = nh.advertise<visualization_msgs::Marker> ("my_pcl_tutorial/marker/stem_to_cut", 1);
 
   // Spin
-  ros::spin ();
+  ros::spin();
 }
