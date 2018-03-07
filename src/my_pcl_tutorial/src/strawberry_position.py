@@ -10,13 +10,13 @@ if __name__ == '__main__':
 	listener = tf.TransformListener()
 	
 	strawberry_position = rospy.Publisher('my_pcl_tutorial/strawberry_position', Pose)
-	rate = rospy_Rate(10) # ?
+	rate = rospy.Rate(10) # ?
 	while not rospy.is_shutdown():
 		try:
-			(trans, rot) = listener.lookupTransform('Strawberry', 'base', rospy.Time(0))
+			(trans, rot) = listener.lookupTransform('base_link', 'Strawberry', rospy.Time(0))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 			continue
-		strawberry_pose = geometry_msgs.Pose()
+		strawberry_pose = Pose()
 		strawberry_pose.position.x = trans[0]
 		strawberry_pose.position.y = trans[1]
 		strawberry_pose.position.z = trans[2]
