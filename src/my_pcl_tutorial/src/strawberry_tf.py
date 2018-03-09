@@ -9,7 +9,7 @@ def cb_marker(msg):
 	br.sendTransform((msg.pose.position.x, msg.pose.position.y, msg.pose.position.z),
 			tf.transformations.quaternion_from_euler(0, 0, 0),
 			rospy.Time.now(),
-			"Strawberry",
+			"strawberry",
 			"camera_rgb_optical_frame")
 if __name__ == "__main__":
 	rospy.init_node("strawberry_tf_broadcaster")
