@@ -1,0 +1,58 @@
+###### calibration: (put apriltag in the tote and make sure all the cameras can see the apriltag)
+
+roslaunch realsense_camera sr300_nodelet_rgbd.launch serial_no:=XXXXXXXXXX
+roslaunch apriltags_ros example.launch
+rosrun tf static_transform_publisher 0 0 0 0 0 0 1 /map /bin_center 100
+rosrun heightmap_creator getpose.py
+rosrun heightmap_creator setcamera.py /home/nctuece/catkin_ws/src/heightmap_creator/camera.txt
+rosrun heightmap_creator get_height_map sr300_X
+rosservice call /get_height_map true
+rosrun heightmap_creator adjustment sr300_X
+cp /home/nctuece/catkin_ws/src/heightmap_creator/camera.txt /home/nctuece/catkin_ws/src/heightmap_creator/sr300_x.txt
+
+###### run
+
+roslaunch realsense_camera sr300_nodelet_rgbd.launch serial_no:=XXXXXXXXXX
+rosrun tf static_transform_publisher 0 0 0 0 0 0 1 /map /bin_center 100
+rosrun heightmap_creator setcamera.py /home/nctuece/catkin_ws/src/heightmap_creator/sr300_x.txt
+rosrun heightmap_creator get_height_map sr300_X
+rosservice call /get_height_map true
+rosrun heightmap_creator adjustment sr300_X exec
+
+
+rosrun heightmap_creator mergeheightmap sr300_1 sr300_4 sr300_18 sr300_20
+
+
+
+
+
+
+NOTE:
+catkin_make error No rule to make target `/usr/lib/x86_64-linux-gnu/libconsole_bridge.soopencv_videostab'
+edit catkin_ws/build/heightmap_creator/CMakeFiles/XXX.dir/build.make & link.txt
+libconsole_bridge.soopencv_videostab -> libconsole_bridge.so
+catkin_make clean & catkin_make
+================================================================================================
+calibrate:
+
+launch camera left(12), center(3) and right(1), run getpose.py and the tf data will write to the camera.txt file.
+copy them and paste to sr300_().txt
+ 
+For detect apriltag roslaunch apriltags_ros small_tag0.launch
+
+rosrun heightmap_creator set_center_camera.py ~/catkin_ws/src/heightmap_creator/sr300_3.txt
+
+left: ID12
+roslaunch realsense_camera sr300_nodelet_rgbd.launch serial_no:=619205003648
+rosrun heightmap_creator setcamera.py ~/catkin_ws/src/heightmap_creator/sr300_12.txt
+rosrun heightmap_creator get_transformed_pointcloud
+
+center: ID3
+roslaunch realsense_camera sr300_nodelet_rgbd.launch serial_no:=620202002233
+rosrun heightmap_creator setcamera.py ~/catkin_ws/src/heightmap_creator/sr300_3.txt
+rosrun heightmap_creator get_transformed_pointcloud
+
+right: ID1
+roslaunch realsense_camera sr300_nodelet_rgbd.launch serial_no:=619204003693
+rosrun heightmap_creator setcamera.py ~/catkin_ws/src/heightmap_creator/sr300_1.txt
+rosrun heightmap_creator get_transformed_pointcloud
