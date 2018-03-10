@@ -1,0 +1,54 @@
+roslaunch ur_modern_driver ur5_bringup.launch robot_ip:=140.113.146.131
+roslaunch ur5_moveit_config ur5_moveit_planning_execution.launch
+
+!!IMPORTANT ee_link is end effector frame
+
+camera w.r.t tcp
+0 0.075 0.052 0 0 0 1
+rosrun tf static_transform_publisher 0.065 0 0.055 0 -1.57 -3.14 tool0_controller /camera_link 10
+rosrun tf static_transform_publisher 0 0 0.17 0 0 0 tool0_controller /gripper 10
+
+rosrun tf static_transform_publisher 0 0 0.215 0 0 0 tool0_controller /strawberry_picker 10
+
+
+rosrun ur_modern_driver XXX.py
+
+calibrate:
+rosrun heightmap_creator calibrate.py
+
+rosrun heightmap_creator settote.py
+
+
+sudo chmod 777 /dev/ttyUSB0
+
+#for apriltags
+rosrun tf static_transform_publisher 0 0 0 1.57 0 3.14 tag_0 dove_tag_middle 10
+
+#for brand_detection
+rosrun tf static_transform_publisher 0 0 0 1.57 0 3.14 dove_tag dove_tag_middle 10
+
+
+grasping  (0.17 = gripper length) robotiq
+rosrun tf static_transform_publisher 0 0 -0.17 0 -1.57 1.57 dove_tag_middle dove_tag_middle_mod 10
+
+grasping  (0.25 = gripper length) monica-gripper
+rosrun tf static_transform_publisher 0 0 -0.25 0 -1.57 1.57 dove_tag_middle dove_tag_middle_mod 10
+
+
+suction  (0.27 = gripper length) monica-gripper
+rosrun tf static_transform_publisher 0.05 0.04 -0.32 0 -1.57 1.57 dove_tag_middle dove_tag_middle_mod 10
+
+
+rosrun ur_modern_driver grasp_object.py
+rosrun ur_modern_driver move_to_shelf_init_pos.py
+rosrun ur_modern_driver move_to_shelf2.py 
+rosrun ur_modern_driver move_into_shelf.py
+rosrun ur_modern_driver move.py
+rosrun ur_modern_driver move_deeper.py
+rosrun ur_modern_driver move_out.py
+rosrun ur_modern_driver move_into_shelf_invert.py
+rosrun ur_modern_driver move_to_shelf_init_pos.py
+rosrun ur_modern_driver move_to_chair_init.py
+
+
+
