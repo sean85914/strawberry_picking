@@ -27,6 +27,9 @@ ros::Publisher pub_cloud;
 ros::Publisher pub_sphere;
 // Publish once
 bool published = false;
+// Debug
+// rosrun my_pcl_tutorial strawberry_seg _seg_debug:=true
+bool seg_debug;
 // Position
 double cut_x = 0;
 double cut_y = 0;
@@ -76,7 +79,6 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation(new pcl::PointCloud<pcl::PointXYZRGB> ());
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation_cp(new pcl::PointCloud<pcl::PointXYZRGB> ());
   // Set true to visualization
-  bool debug = false;
   // Visualization
   //pcl::visualization::PCLVisualizer viewer ("Strawberry with vector");
 
@@ -212,7 +214,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   }
   Eigen::Vector4f center = pca.getMean(); // center
   // Debug
-  if(debug)
+  if(seg_debug)
   {
     pcl::visualization::PCLVisualizer viewer("Strawberry");
     pcl::PointXYZ point1, point2;
@@ -352,6 +354,7 @@ main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "my_pcl_tutorial");
   ros::NodeHandle nh;
+  ros::NodeHandle nh_("~");
   /*try{
     nh.getParam("r_thres", r_thres);
     nh.getParam("g_thres", g_thres);
@@ -366,7 +369,8 @@ main (int argc, char** argv)
 
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe ("/camera/depth_registered/points", 1, cloud_cb);
-
+  // Debug
+  nh_.getParam("seg_debug", seg_debug);
   // Create a ROS publisher for the output point cloud
   
   //pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("my_pcl_tutorial/segmentation", 1);
