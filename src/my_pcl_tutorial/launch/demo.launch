@@ -1,0 +1,13 @@
+<launch>
+	<!-- SR300 -->
+	<include file="$(find my_pcl_tutorial)/launch/sr300_nodelet_rgbd.launch"/>
+	<!-- Static tf of camera adn gripper -->
+	<include file="$(find my_pcl_tutorial)/launch/staric_tf.launch"/>
+	<!-- Find stem of strawberry -->
+	<node pkg="my_pcl_tutorial" type="strawberry_seg" name="strawberry_seg"/>
+	<!-- Publish strawberry tf -->
+	<node pkg="my_pcl_tutorial" type="strawberry_tf" name="strawberry_tf"/>
+	<!-- Publish strawberry pose w.r.t base -->
+	<node pkg="my_pcl_tutorial" type="strawberry_position" name="strawberrt_position"/>
+	<node pkg="ur_modern_driver" type="strawberry_picking.py" name="strawberry_picking"/>
+</launch>
