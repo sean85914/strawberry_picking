@@ -1,13 +1,26 @@
 <launch>
+	<!-- Setup UR5 and Moveit! -->
+	<include file="$(find ur_modern_driver)/launch/ur5_bringup.launch">
+		<arg name="robot_ip" default="140.113.148.168"/>
+	</include>
+	<include file="$(find ur5_moveit_config)/launch/ur5_moveit_planning_execution.launch"/>
 	<!-- SR300 -->
 	<include file="$(find my_pcl_tutorial)/launch/sr300_nodelet_rgbd.launch"/>
-	<!-- Static tf of camera adn gripper -->
-	<include file="$(find my_pcl_tutorial)/launch/staric_tf.launch"/>
+	<!-- Dynamixel -->
+	<include file="$(find dynamixel_tutorials)/launch/controller_manager.launch"/>
+	<include file="$(find dynamixel_tutorials)/launch/controller_spawner.launch"/>
+	<!-- Static tf of camera and gripper -->
+	<include file="$(find my_pcl_tutorial)/launch/static_tf.launch"/>
 	<!-- Find stem of strawberry -->
-	<node pkg="my_pcl_tutorial" type="strawberry_seg" name="strawberry_seg"/>
+	<!-- Run on NB -->
+	<!--node pkg="my_pcl_tutorial" type="strawberry_seg" name="strawberry_seg"/!-->
 	<!-- Publish strawberry tf -->
-	<node pkg="my_pcl_tutorial" type="strawberry_tf" name="strawberry_tf"/>
+	<!-- Run on NB -->
+	<!--node pkg="my_pcl_tutorial" type="strawberry_tf.py" name="strawberry_tf"/ !-->
 	<!-- Publish strawberry pose w.r.t base -->
-	<node pkg="my_pcl_tutorial" type="strawberry_position" name="strawberrt_position"/>
-	<node pkg="ur_modern_driver" type="strawberry_picking.py" name="strawberry_picking"/>
+	<!-- Run on NB -->
+	<!--node pkg="my_pcl_tutorial" type="strawberry_position.py" name="strawberry_position"/ -->
+	<!-- Move the arm to the detected position, close the servo motor and pull down the arm, open the servo motor and return to the original position -->
+	<!-- Run using rosrun -->
+	<!--node pkg="ur_modern_driver" type="strawberry_picking.py" name="strawberry_picking"/ -->
 </launch>
