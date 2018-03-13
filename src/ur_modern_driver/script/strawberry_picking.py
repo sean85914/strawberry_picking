@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-## Not yet test!!!!!!!!!!!!!1
-
 """
     moveit_cartesian_path.py - Version 0.1 2016-07-28
 
@@ -114,8 +112,10 @@ class MoveItCartesianPath:
 	rospy.loginfo("Receive strawberry position, moving the arm ......")
 	self.waypoints = []
 	self.waypoints.append(self.start_pose)
+	print("%.2f" %msg.position.x, "%.2f" %msg.position.y, "%.2f" %msg.position.z)
+	# X: 0.21, Y: 0, Z: 0.02
 	self.wpose.position.x = msg.position.x - 0.21
-	self.wpose.position.y = msg.position.y 
+	self.wpose.position.y = msg.position.y + 0.01
 	self.wpose.position.z = msg.position.z + 0.06
 	self.waypoints.append(deepcopy(self.wpose))
 	self.move_arm()
@@ -132,7 +132,7 @@ class MoveItCartesianPath:
 	self.wpose = deepcopy(self.start_pose_1)
 	self.waypoints = []
 	self.waypoints.append(self.start_pose_1)
-	self.wpose.position.z -= 0.02
+	self.wpose.position.z -= 0.03
 	self.waypoints.append(deepcopy(self.wpose))
 	self.move_arm()
 	# Open the gripper
