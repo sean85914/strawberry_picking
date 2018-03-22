@@ -112,6 +112,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   }
   // Information
   //std::cout<<"After voxel grid downsamlpling, there are " << cloud_vg_T->points.size() <<" points."<< std::endl;
+  // Cost time
+  int stop_s = clock();
+  std::cout << "VG costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // New process: Remove plane
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -142,6 +146,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
       viewer.spinOnce();
     }
   }
+  // Cost time
+  stop_s = clock();
+  std::cout << "Plane removal costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // 3. Color filter
   int count = 0;
   for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it=cloud_remove_plane->begin(); it!= cloud_remove_plane->end(); it++)
@@ -175,6 +183,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
       viewer.spinOnce();
     }
   }*/
+  // Cost time
+  stop_s = clock();
+  std::cout << "Color filter costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // 4. Statistical outlier removal
   pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
   sor.setInputCloud(cloud_rgb);
@@ -193,6 +205,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
       viewer.spinOnce();
     }
   }
+  // Cost time
+  stop_s = clock();
+  std::cout << "SOR costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // Find center for min-cut
   Eigen::Vector4f centroid; 
   pcl::compute3DCentroid(*cloud_sor_T, centroid);
@@ -251,6 +267,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   segmentation->height = 1;
   segmentation->points.resize(count);
   *segmentation_cp = *segmentation;
+  // Cost time
+  stop_s = clock();
+  std::cout << "Min-cut costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // SOR again
   sor.setInputCloud(segmentation);
   sor.setMeanK(200);
@@ -292,12 +312,16 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     point2.z = center(2) + normal(0, 2) * 0.1;
     viewer.addArrow(point2, point1, 1, 0, 0, false);
     viewer.addSphere(point1, 0.005);
-    viewer.addPointCloud(cloud_sor_T, "point_cloud");
+    viewer.addPointCloud(cloud_vg_T, "point_cloud");
     while(!viewer.wasStopped())
     {
       viewer.spinOnce();
     }
   }
+  // Cost time
+  stop_s = clock();
+  std::cout << "PCA costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   //7.Sectional plane
   double dis_array[28];
   int num[28];
@@ -426,8 +450,8 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   // Publish the data
   //pub_cloud.publish (output);
   published = true;
-  int stop_s = clock();
-  std::cout << "Take " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << "ms." << std::endl;
+  stop_s = clock();
+  std::cout << "Find where to cut costs " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
 }
 
 int
