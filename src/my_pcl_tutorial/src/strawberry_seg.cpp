@@ -1,11 +1,12 @@
 // Input: pointcloud from SR300
-// Output: Strawberry position w.r.t camera
+// Output: Strawberry position w.r.t camera_rgb_optical_frame
 // CPP
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cmath>
 #include <algorithm>
+#include <ctime>
 // ROS
 #include <ros/ros.h>
 #include <ros/console.h>
@@ -20,6 +21,13 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/common/pca.h>
 #include <pcl/segmentation/min_cut_segmentation.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/filters/extract_indices.h>
+
 // For debug
 #include <pcl/visualization/pcl_visualizer.h>
 // Publisher
@@ -27,6 +35,9 @@ ros::Publisher pub_cloud;
 ros::Publisher pub_sphere;
 // Publish once
 bool published = false;
+// Debug
+// rosrun my_pcl_tutorial strawberry_seg _seg_debug:=true
+bool seg_debug;
 // Position
 double cut_x = 0;
 double cut_y = 0;
@@ -61,6 +72,7 @@ pub_marker(double x, double y, double z, std::string frame_id)
 void 
 cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
 {
+  int start_s = clock();
   if(published) {pub_marker(cut_x, cut_y, cut_z, cloud_msg->header.frame_id); return;}
   // Show calculation time
   ros::Time now = ros::Time::now();
@@ -73,29 +85,74 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_vg_T(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rgb(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_sor_T(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_remove_plane(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation(new pcl::PointCloud<pcl::PointXYZRGB> ());
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmentation_cp(new pcl::PointCloud<pcl::PointXYZRGB> ());
   // Set true to visualization
-  bool debug = false;
   // Visualization
   //pcl::visualization::PCLVisualizer viewer ("Strawberry with vector");
-
-  // 1.Convert to PCL data type
+  // 1. Convert to PCL data type
   pcl_conversions::toPCL(*cloud_msg, *cloud);
-
-  // 2.Voxel grid downsampling
+  // 2. Voxel grid downsampling
   pcl::VoxelGrid<pcl::PCLPointCloud2> vg;
   vg.setInputCloud (cloudPtr);
   vg.setLeafSize (0.001f, 0.001f, 0.001f);
   vg.filter (cloud_vg);
   // Convert to type Point T
   pcl::fromPCLPointCloud2(cloud_vg, *cloud_vg_T);
+  // Visualiza 1: VG
+  if(seg_debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Voxel grid");
+    viewer.addPointCloud(cloud_vg_T, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }
   // Information
   //std::cout<<"After voxel grid downsamlpling, there are " << cloud_vg_T->points.size() <<" points."<< std::endl;
+  // Cost time
+  int stop_s = clock();
+  std::cout << "VG costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
+  // New process: Remove plane
+  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+  // Create the segmentation object
+  pcl::SACSegmentation<pcl::PointXYZRGB> seg_plane;
+  // Optional
+  seg_plane.setOptimizeCoefficients (true);
+  // Mandatory
+  seg_plane.setModelType (pcl::SACMODEL_PLANE);
+  seg_plane.setMethodType (pcl::SAC_RANSAC);
+  seg_plane.setDistanceThreshold (0.01);
 
-  // 3.Color filter
+  seg_plane.setInputCloud (cloud_vg_T);
+  seg_plane.segment (*inliers, *coefficients);
+
+  pcl::ExtractIndices<pcl::PointXYZRGB> indiceFilter (true); // Initializing with true will allow us to extract the removed indices
+  indiceFilter.setInputCloud(cloud_vg_T);
+  indiceFilter.setIndices(inliers);
+  indiceFilter.setNegative(true);
+  indiceFilter.filter(*cloud_remove_plane);
+  // New process visualization
+  if(seg_debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Plane removal");
+    viewer.addPointCloud(cloud_remove_plane, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }
+  // Cost time
+  stop_s = clock();
+  std::cout << "Plane removal costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
+  // 3. Color filter
   int count = 0;
-  for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it=cloud_vg_T->begin(); it!= cloud_vg_T->end(); it++)
+  for(pcl::PointCloud<pcl::PointXYZRGB>::iterator it=cloud_remove_plane->begin(); it!= cloud_remove_plane->end(); it++)
   {
     if(it->r<=255 && it->r >=86 && it->g>=0 && it->g <=70 && it->b >=0 && it->b <= 82)
     {
@@ -116,8 +173,21 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   cloud_rgb->points.resize(count);
   // Information
   //std::cout<<"After color filter, there are " << cloud_rgb->points.size() <<" points."<< std::endl;
-    
-  // 4.Statistical outlier removal
+  // Visualiza 2: Color Filter
+  /*if(seg_debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Color filter");
+    viewer.addPointCloud(cloud_rgb, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }*/
+  // Cost time
+  stop_s = clock();
+  std::cout << "Color filter costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
+  // 4. Statistical outlier removal
   pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
   sor.setInputCloud(cloud_rgb);
   sor.setMeanK(200);
@@ -125,6 +195,20 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   sor.filter (*cloud_sor_T);
   // Information
   //std::cout<<"After statistical outlier removal, there are " << cloud_sor_T->points.size() <<" points."<< std::endl;
+  // Visualiza 3: Color Filter + SOR
+  if(seg_debug)
+  {
+    pcl::visualization::PCLVisualizer viewer("Color filter and SOR");
+    viewer.addPointCloud(cloud_sor_T, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }
+  // Cost time
+  stop_s = clock();
+  std::cout << "SOR costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // Find center for min-cut
   Eigen::Vector4f centroid; 
   pcl::compute3DCentroid(*cloud_sor_T, centroid);
@@ -139,7 +223,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
       viewer.spinOnce();
     }
   }*/
-  // 5.Min-cut segmentation
+  // 5. Min-cut segmentation
   pcl::MinCutSegmentation<pcl::PointXYZRGB> seg;
   seg.setInputCloud (cloud_vg_T);
   // Set foreground and parameters
@@ -183,24 +267,28 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   segmentation->height = 1;
   segmentation->points.resize(count);
   *segmentation_cp = *segmentation;
+  // Cost time
+  stop_s = clock();
+  std::cout << "Min-cut costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   // SOR again
   sor.setInputCloud(segmentation);
   sor.setMeanK(200);
-  sor.setStddevMulThresh (0.2);
+  sor.setStddevMulThresh (0.01);
   sor.filter (*cloud_sor_T);
   // Information
   //std::cout << "After min-cut segmentation, there are " << segmentation->points.size() << " points for strawberry." << std::endl;
-  // Debug
-  /*if(debug)
+  // Visualiza 4: Min-cut Segmentation
+  if(seg_debug)
   {
-    pcl::visualization::PCLVisualizer viewer("Strawberry");
+    pcl::visualization::PCLVisualizer viewer("Segmentation");
     viewer.addPointCloud(cloud_sor_T, "point_cloud");
     while(!viewer.wasStopped())
     {
       viewer.spinOnce();
     }
-  }*/
-  // 6.PCA
+  }
+  // 6. PCA
   pcl::PCA<pcl::PointXYZRGB> pca;
   pca.setInputCloud(cloud_sor_T);
   Eigen::Matrix3f normal = pca.getEigenVectors(); // plane normal
@@ -211,10 +299,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     normal = -normal;
   }
   Eigen::Vector4f center = pca.getMean(); // center
-  // Debug
-  if(debug)
+  // Visualiza 5: PCA
+  if(seg_debug)
   {
-    pcl::visualization::PCLVisualizer viewer("Strawberry");
+    pcl::visualization::PCLVisualizer viewer("PCA");
     pcl::PointXYZ point1, point2;
     point1.x = center(0);
     point1.y = center(1);
@@ -224,12 +312,16 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     point2.z = center(2) + normal(0, 2) * 0.1;
     viewer.addArrow(point2, point1, 1, 0, 0, false);
     viewer.addSphere(point1, 0.005);
-    viewer.addPointCloud(cloud_sor_T, "point_cloud");
+    viewer.addPointCloud(cloud_vg_T, "point_cloud");
     while(!viewer.wasStopped())
     {
       viewer.spinOnce();
     }
   }
+  // Cost time
+  stop_s = clock();
+  std::cout << "PCA costs: " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
+  start_s = clock();
   //7.Sectional plane
   double dis_array[28];
   int num[28];
@@ -262,9 +354,9 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
         {dis_array[i] = 0;}
     }
     // Information
-    //std::cout << dis_array[i] << " " << num[i] << " ";
+    //	std::cout << dis_array[i] << " " << num[i] << " ";
   }
-  //8. Find the stem to cut
+  // 8. Find the stem to cut
   //Method 1. Find the minimum of the array from center toward the eigenvector direction
   int min = num[14];
   int index = 14;
@@ -340,10 +432,26 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
   //sensor_msgs::PointCloud2 output;
   //output.header.frame_id = cloud_msg->header.frame_id;
   //pcl_conversions::fromPCL(cloud_sor, output);
-
+  // Visualiza 6: Output
+  if(seg_debug)
+  {
+  	pcl::visualization::PCLVisualizer viewer("Output");
+    pcl::PointXYZ point1;
+    point1.x = cut_x;
+    point1.y = cut_y;
+    point1.z = cut_z;
+    viewer.addSphere(point1, 0.005);
+    viewer.addPointCloud(cloud_remove_plane, "point_cloud");
+    while(!viewer.wasStopped())
+    {
+      viewer.spinOnce();
+    }
+  }
   // Publish the data
   //pub_cloud.publish (output);
   published = true;
+  stop_s = clock();
+  std::cout << "Find where to cut costs " << (stop_s - start_s)/double(CLOCKS_PER_SEC) * 1000 << " ms." << std::endl;
 }
 
 int
@@ -352,6 +460,8 @@ main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "my_pcl_tutorial");
   ros::NodeHandle nh;
+  // Load parameter
+  ros::NodeHandle nh_("~");
   /*try{
     nh.getParam("r_thres", r_thres);
     nh.getParam("g_thres", g_thres);
@@ -366,7 +476,8 @@ main (int argc, char** argv)
 
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe ("/camera/depth_registered/points", 1, cloud_cb);
-
+  // Debug
+  nh_.getParam("seg_debug", seg_debug);
   // Create a ROS publisher for the output point cloud
   
   //pub_cloud = nh.advertise<sensor_msgs::PointCloud2> ("my_pcl_tutorial/segmentation", 1);

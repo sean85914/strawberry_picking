@@ -24,9 +24,9 @@ if __name__ == '__main__':
 		strawberry_pose.orientation.y = rot[1]
 		strawberry_pose.orientation.z = rot[2]
 		strawberry_pose.orientation.w = rot[3]
-		print("strawberry w.r.t base_link")
-		print("%.3f " %trans[0], "%.3f" %trans[1], "%.3f" %trans[2] ) # show the result at terminal
-		strawberry_position.publish()
+		#print("strawberry w.r.t base_link")
+		#print("%.3f " %trans[0], "%.3f" %trans[1], "%.3f" %trans[2] ) # show the result at terminal
+		strawberry_position.publish(strawberry_pose)
 		
 		rate.sleep()
 		

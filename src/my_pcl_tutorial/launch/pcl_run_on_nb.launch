@@ -1,0 +1,8 @@
+<launch>
+	<arg name="seg_debug" default="false"/>
+	<node pkg="my_pcl_tutorial" type="strawberry_seg" name="strawberry_seg" output="screen">
+		<param name="seg_debug" type="bool" value="$(arg seg_debug)"/>
+	</node>
+	<node pkg="my_pcl_tutorial" type="strawberry_tf.py" name="strawberry_tf" output="screen"/>
+	<node pkg="my_pcl_tutorial" type="strawberry_position.py" name="strawberry_position" output="screen"/>
+</launch>
