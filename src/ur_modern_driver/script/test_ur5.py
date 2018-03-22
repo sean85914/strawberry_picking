@@ -81,6 +81,7 @@ class MoveItCartesianPath:
         wpose.position.x = 0.3394
         wpose.position.y = -0.0271
         wpose.position.z = 0.6714
+
         #wpose.orientation.x = quat[0]
         #wpose.orientation.y = quat[1]
         #wpose.orientation.z = quat[2]
