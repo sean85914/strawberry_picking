@@ -6,4 +6,4 @@
 ### DS18B20 data pin (the middle one) connect to Arduino D2 pin
 
 # Record Raspberry Pi CPU temperature
-[Link Text](https://github.com/milesburton/Arduino-Temperature-Control-Library.git "Get CPU temperature of your RPi") Get CPU temperature of your RPi
+[Link Text](https://www.raspberrypi.org/forums/viewtopic.php?t=34994 "Get CPU temperature of your RPi") Get CPU temperature of your RPi
