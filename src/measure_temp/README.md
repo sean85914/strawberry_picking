@@ -1,6 +1,8 @@
 # Use Arduino + DS18B20 to measure temperature
 ### Download https://github.com/milesburton/Arduino-Temperature-Control-Library.git 
 ### and add the library to your Arduino IDE
+### You may also need to add OneWire library
+[Link Text](https://www.arduinolibraries.info/libraries/one-wire "OneWire") Downlaod OneWire library here 
 
 ### Update /script/temperature.ino to your Arduino
 ### DS18B20 data pin (the middle one) connect to Arduino D2 pin

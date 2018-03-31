@@ -5,7 +5,9 @@
 
 # Editor: Sean, Lu
 # Last update: 3/30, 2018
-
+'''
+  Update: Add log
+'''
 import subprocess
 import rospy
 from std_msgs.msg import Float64
@@ -15,7 +17,7 @@ pub_temp = rospy.Publisher('/temp/pi_cpu_temp', Float64, queue_size = 10)
 def get_temp(event):
 	res_str = subprocess.check_output(['/opt/vc/bin/vcgencmd', 'measure_temp'])
 	res = float(res_str[5:9])
-	print res
+	print "[cpu_temp] CPU temp: ", res
 	msg = Float64()
 	msg.data = res
 	pub_temp.publish(msg)

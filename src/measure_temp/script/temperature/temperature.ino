@@ -1,8 +1,11 @@
 /* Revised from Arduino-Temperature-Control-Library/examples/Simple/Simple.pde
    Use DS18B20 to measure the temperature and show through serial
    Editor: Sean, Lu
-   Last update: 3/30, 2018
-*/ 
+   Last update: 3/31, 2018
+*/
+/*
+   Update: Revise wrong word
+*/
 
 // Include the libraries we need
 
@@ -17,7 +20,7 @@
 // Setup a oneWire instance to communicate with any OneWire devices
 // (not just Maxim/Dallas temperature ICs)
 
-oneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(ONE_WIRE_BUS);
 
 // Pass our oneWire referance to Dallas Temperature
 DallasTemperature sensors(&oneWire);
