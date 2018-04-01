@@ -1,0 +1,7 @@
+<launch>
+	<arg name="port" default="/dev/ttyUSB0" doc="Arduino port"/>
+	<node pkg="measure_temp" type="ard_serial.py" name="ard_serial" output="screen">
+		<param name="port" value="$(arg port)"/>
+	</node>
+	<node pkg="measure_temp" type="cpu_temp.py" name="cpu_temp" output="screen"/>
+</launch>
