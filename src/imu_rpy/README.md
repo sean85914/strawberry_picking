@@ -7,3 +7,6 @@
 ### imu_init.py: Initial yaw after start up
 ### imu_add_gyro.py: Different from the first one, also using gyro to measure R and P
 angle = 0.98 * (angle + gyroData * dt) + 0.02 * (accData)
+
+How to connect Adafruit 9 dof breakout and Pi?
+[image](https://imgur.com/a/5qlMW)
