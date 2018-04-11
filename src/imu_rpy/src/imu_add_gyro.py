@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import rospy
-import time
-import math
+import numpy as np
+from  math import cos, sin, atan2, sqrt
 import numpy
 import tf
 from Adafruit_LSM303 import Adafruit_LSM303
@@ -26,13 +26,23 @@ class AdafruitIMU(object):
 		self.roll = 0
 		self.pitch = 0
 		self.yaw = 0
+		# Rotation matrix
+		self.rotation_matrix = None
 		rospy.loginfo("[%s] Initialized..." %(self.node_name))
 	def setupParam(self, param_name, default_value):
 		value = rospy.get_param(param_name, default_value)
 		rospy.set_param(param_name, value)
 		rospy.loginfo("[%s] %s = %s" %(self.node_name, param_name, value))
 		return value
+	def create_rotation_matrix(self, roll, pitch, yaw):
+		self.rotation_matrix = np.zeros(9)
+		self.rotation_matrix.reshape(3,3)
+		R_x = np.matrix([[1,0,0], [0, cos(roll), -sin(roll)], [0, sin(roll), cos(roll)]])
+		R_y = np.matrix([[cos(pitch), 0, sin(pitch)],[0, 1, 0],[-sin(pitch), 0, cos(pitch)]])
+		R_z = np.matrix([[cos(yaw), -sin(yaw), 0],[sin(yaw), cos(yaw), 0],[0, 0, 1]])
+		self.rotation_matrix = np.matmul(R_x, R_y, R_z)
 	def publish(self, event):
+		self.create_rotation_matrix(self.roll, self.pitch, self.yaw)
 		compass_accel = self.compass_accel.read()
 		compass = compass_accel[1]
 		accel = compass_accel[0]
@@ -43,14 +53,16 @@ class AdafruitIMU(object):
 		gyro_rad = [0, 0, 0]
 		for i in range(3):
 			gyro_rad[i] = gyro[0][i] * self.DEG_TO_RAD
-		roll = math.atan2(acc_y, acc_z)
-		pitch = math.atan2(-acc_x, math.sqrt(acc_y * acc_y + acc_z * acc_z))
-		mag_x_tilt = compass[0] * math.cos(pitch) + compass[1] * math.sin(pitch)
-		mag_y_tilt = compass[0] * math.sin(roll) * math.sin(pitch) + compass[2] * math.cos(roll) - compass[1] * math.sin(roll) * math.cos(pitch)
-		yaw = math.atan2(mag_y_tilt, mag_x_tilt)
-		self.roll  = 0.02 * roll  + (self.roll + self.pub_timestep * gyro_rad[0]) * 0.98
-		self.pitch = 0.02 * pitch + (self.pitch + self.pub_timestep * gyro_rad[1]) * 0.98
-		self.yaw   = 0.02 * yaw   + (self.yaw + self.pub_timestep * gyro_rad[2]) * 0.98
+		gyro_mat = np.matrix([[gyro_rad[0]],[gyro_rad[1]],[gyro_rad[2]]])
+		gyro_rot = np.matmul(self.rotation_matrix, gyro_mat)
+		roll = atan2(acc_y, acc_z)
+		pitch = atan2(-acc_x, sqrt(acc_y * acc_y + acc_z * acc_z))
+		mag_x_tilt = compass[0] * cos(pitch) + compass[1] * sin(pitch)
+		mag_y_tilt = compass[0] * sin(roll) * sin(pitch) + compass[2] * cos(roll) - compass[1] * sin(roll) * cos(pitch)
+		yaw = atan2(mag_y_tilt, mag_x_tilt)
+		self.roll  = 0.02 * roll  + (self.roll + self.pub_timestep * gyro_rot[0,0]) * 0.98
+		self.pitch = 0.02 * pitch + (self.pitch + self.pub_timestep * gyro_rot[1,0]) * 0.98
+		self.yaw   = 0.02 * yaw   + (self.yaw + self.pub_timestep * gyro_rot[2,0]) * 0.98
 		# compass[0] > mag_x
 		# compass[1] > mag_z
 		# compass[2] > mag_y
@@ -68,3 +80,4 @@ if __name__ == "__main__":
 	Adafruit_IMU = AdafruitIMU()
 	rospy.on_shutdown(Adafruit_IMU.on_shutdown)
 	rospy.spin()
+
